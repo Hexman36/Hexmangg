@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HexCasino Demo</title>
+<style>
+:root{--bg:#090d16;--panel:#141d2d;--panel2:#202c40;--green:#00e6a0;--blue:#568bff;--red:#ff5268;--text:#f5f7fc;--muted:#9ba9bd}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
+.app{max-width:1050px;margin:auto;padding:15px}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:15px 0;border-bottom:1px solid #29354a}
+.logo{font-size:23px;font-weight:900;color:var(--green)}
+.logo span{color:white}
+.balance{background:var(--panel);padding:12px;border-radius:10px}
+.balance strong{color:var(--green)}
+.panel{background:var(--panel);padding:18px;border:1px solid #29354a;border-radius:13px;margin:14px 0}
+.auth{max-width:430px;margin:45px auto}
+.auth h1{text-align:center}
+input,select{width:100%;padding:13px;background:#0b1321;color:white;border:1px solid #34435c;border-radius:8px}
+label{display:block;color:var(--muted);margin-bottom:7px}
+.field{margin:13px 0}
+button{border:0;border-radius:8px;padding:12px 15px;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.45;cursor:not-allowed}
+.primary{background:var(--green);color:#07140f}
+.secondary{background:var(--blue);color:white}
+.danger{background:var(--red);color:white}
+nav{display:flex;gap:7px;overflow-x:auto;padding:15px 0}
+nav button{white-space:nowrap;background:var(--panel2);color:white}
+nav button.active{background:var(--green);color:#06150f}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.game-card{background:var(--panel2);padding:17px;border-radius:11px}
+.game-card button{background:var(--green)}
+.big{font-size:32px;font-weight:900}
+.muted{color:var(--muted)}
+.notice{background:#302817;color:#ffdc91;padding:12px;border-radius:9px;font-size:13px;line-height:1.5}
+.hidden{display:none!important}
+.game-display{text-align:center;background:#0b1321;padding:25px;border-radius:12px;margin:14px 0}
+.result{font-size:18px;font-weight:bold;margin:14px 0}
+.mines-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;max-width:350px;margin:15px auto}
+.mine-tile{aspect-ratio:1;background:#293750;color:white;font-size:20px;padding:5px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+td,th{text-align:left;padding:9px;border-bottom:1px solid #34435c;overflow-wrap:anywhere}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:25px}
+@media(max-width:480px){.app{padding:9px}.panel{padding:13px}.logo{font-size:19px}}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+ <div class="logo">HEX<span>CASINO</span></div>
+ <div class="balance">Balance: <strong id="headerBalance">0 HC</strong></div>
+</header>
+
+<section id="authScreen" class="auth panel">
+ <h1>HEXCASINO</h1>
+ <p class="muted" style="text-align:center">Virtual gaming demonstration</p>
+
+ <div id="loginForm">
+  <div class="field"><label>Username</label><input id="loginUser" autocomplete="username" placeholder="Enter username"></div>
+  <div class="field"><label>Password</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="Enter password"></div>
+  <button class="primary" style="width:100%" onclick="login()">LOGIN</button>
+  <p class="muted">Don't have an account? <a href="#" onclick="showRegister();return false" style="color:var(--green)">Register</a></p>
+ </div>
+
+ <div id="registerForm" class="hidden">
+  <div class="field"><label>Choose username</label><input id="regUser" autocomplete="username" placeholder="3–20 letters or numbers"></div>
+  <div class="field"><label>Choose password</label><input id="regPass" type="password" autocomplete="new-password" placeholder="At least 4 characters"></div>
+  <button class="primary" style="width:100%" onclick="register()">CREATE ACCOUNT</button>
+  <p class="muted">Already registered? <a href="#" onclick="showLogin();return false" style="color:var(--green)">Login</a></p>
+ </div>
+ <p id="authMessage" class="muted" role="status"></p>
+ <div class="notice">Demo only. Do not use a real password. Accounts are stored in this browser when storage is available.</div>
+</section>
+
+<section id="mainApp" class="hidden">
+<nav>
+ <button class="active" data-page="home" onclick="page('home',this)">Home</button>
+ <button data-page="crash" onclick="page('crash',this)">Crash</button>
+ <button data-page="slots" onclick="page('slots',this)">Slots</button>
+ <button data-page="dice" onclick="page('dice',this)">Dice</button>
+ <button data-page="mines" onclick="page('mines',this)">Mines</button>
+ <button data-page="deposit" onclick="page('deposit',this)">Deposit</button>
+ <button data-page="withdraw" onclick="page('withdraw',this)">Withdraw</button>
+ <button data-page="history" onclick="page('history',this)">History</button>
+</nav>
+
+<section id="home" class="screen">
+ <div class="panel">
+  <p class="muted">YOUR VIRTUAL BALANCE</p>
+  <div class="big" id="homeBalance">0 HC</div>
+  <p>Welcome, <strong id="welcomeUser"></strong></p>
+  <div class="notice">All credits, deposits, withdrawals and games are simulated. No real money is involved.</div>
+ </div>
+ <h2>Games</h2>
+ <div class="grid">
+  <div class="game-card"><h3>🚀 Crash</h3><p class="muted">Cash out before the multiplier crashes.</p><button onclick="page('crash')">Play</button></div>
+  <div class="game-card"><h3>🎰 Slots</h3><p class="muted">Spin the virtual reels.</p><button onclick="page('slots')">Play</button></div>
+  <div class="game-card"><h3>🎲 Dice</h3><p class="muted">Predict the roll.</p><button onclick="page('dice')">Play</button></div>
+  <div class="game-card"><h3>💣 Mines</h3><p class="muted">Find safe tiles.</p><button onclick="page('mines')">Play</button></div>
+ </div>
+ <div class="panel">
+  <h3>🎁 Promotional bonus</h3>
+  <p>Enter code BEAST to claim 5,000 virtual credits once per account.</p>
+  <div class="field"><input id="bonusInput" placeholder="Enter bonus code"></div>
+  <button class="primary" onclick="claimBonus()">Claim bonus</button>
+  <p id="bonusMessage" class="muted"></p>
+ </div>
+</section>
+
+<section id="crash" class="screen hidden">
+ <div class="panel">
+  <h2>🚀 Crash</h2>
+  <div class="game-display">
+   <p class="muted">MULTIPLIER</p>
+   <div class="big" id="crashMultiplier">1.00x</div>
+   <div id="crashStatus" class="result">Ready</div>
+  </div>
+  <div class="field"><label>Bet amount</label><input id="crashBet" type="number" min="1" value="100"></div>
+  <button class="primary" id="crashStart" onclick="startCrash()">Start round</button>
+  <button class="secondary" id="cashButton" onclick="cashOut()" disabled>Cash out</button>
+ </div>
+</section>
+
+<section id="slots" class="screen hidden">
+ <div class="panel">
+  <h2>🎰 Slots</h2>
+  <div class="game-display"><div class="big" id="slotResult">🍒 | 🍋 | 🔔</div><p id="slotMessage">Ready to spin</p></div>
+  <div class="field"><label>Bet amount</label><input id="slotBet" type="number" min="1" value="100"></div>
+  <button class="primary" onclick="spinSlots()">Spin</button>
+ </div>
+</section>
+
+<section id="dice" class="screen hidden">
+ <div class="panel">
+  <h2>🎲 Dice</h2>
+  <p class="muted">Choose a target from 2 to 95. You win when the roll is higher than your target.</p>
+  <div class="field"><label>Bet amount</label><input id="diceBet" type="number" min="1" value="100"></div>
+  <div class="field"><label>Target number</label><input id="diceTarget" type="number" min="2" max="95" value="50"></div>
+  <button class="primary" onclick="rollDice()">Roll</button>
+  <div id="diceResult" class="result">Waiting for roll</div>
+ </div>
+</section>
+
+<section id="mines" class="screen hidden">
+ <div class="panel">
+  <h2>💣 Mines</h2>
+  <p class="muted">Four mines are hidden among 25 tiles. Find safe tiles and cash out.</p>
+  <div class="field"><label>Bet amount</label><input id="mineBet" type="number" min="1" value="100"></div>
+  <button class="primary" id="mineStart" onclick="startMines()">Start game</button>
+  <div id="mineGrid" class="mines-grid"></div>
+  <p id="mineStatus" class="result">Start a game to play.</p>
+  <button class="secondary" id="mineCash" onclick="cashMines()" disabled>Cash out</button>
+ </div>
+</section>
+
+<section id="deposit" class="screen hidden">
+ <div class="panel">
+  <h2>Demo Deposit</h2>
+  <div class="notice">These are invalid demonstration identifiers, not cryptocurrency wallet addresses. Never send real funds to them.</div>
+  <div class="field"><label>Network</label>
+   <select id="depositNetwork" onchange="updateDepositAddress()">
+    <option>USDT — TRC20</option><option>USDT — ERC20</option><option>Bitcoin</option><option>Ethereum</option><option>BNB</option>
+   </select>
+  </div>
+  <div class="field"><label>Demo wallet identifier</label><input id="depositAddress" readonly></div>
+  <button class="secondary" onclick="copyDepositAddress()">Copy placeholder</button>
+  <div class="field"><label>Virtual credits to add</label><input id="depositAmount" type="number" min="1" value="1000"></div>
+  <button class="primary" onclick="demoDeposit()">Add demo credits</button>
+  <p id="depositMessage" class="muted"></p>
+ </div>
+</section>
+
+<section id="withdraw" class="screen hidden">
+ <div class="panel">
+  <h2>Demo Withdrawal</h2>
+  <div class="notice">Simulated withdrawal only. No money or cryptocurrency will be sent.</div>
+  <div class="field"><label>Method</label>
+   <select id="withdrawMethod"><option>USDT — TRC20</option><option>USDT — ERC20</option><option>Bitcoin</option><option>Ethereum</option><option>Bank transfer (simulation)</option></select>
+  </div>
+  <div class="field"><label>Placeholder wallet/account</label><input id="withdrawAddress" placeholder="DEMO-NOT-A-REAL-ADDRESS"></div>
+  <div class="field"><label>Virtual credits</label><input id="withdrawAmount" type="number" min="1" value="500"></div>
+  <button class="primary" onclick="demoWithdraw()">Submit demo withdrawal</button>
+  <p id="withdrawMessage" class="muted"></p>
+ </div>
+</section>
+
+<section id="history" class="screen hidden">
+ <div class="panel"><h2>Transaction History</h2><div id="historyList"></div></div>
+</section>
+
+<div class="panel"><button class="danger" onclick="logout()">Logout</button></div>
+</section>
+<footer>HEXCASINO DEMO • Virtual credits only • No real-money gambling or payments</footer>
+</div>
+
+<script>
+"use strict";
+
+/* STORAGE: use browser storage when available, memory fallback otherwise */
+const STORAGE_KEY="hexcasino_demo_accounts_v2";
+let memoryAccounts={};
+let storageWorks=true;
+let accounts={};
+let currentUser=null;
+
+function loadAccounts(){
+ try{
+  const raw=localStorage.getItem(STORAGE_KEY);
+  accounts=raw?JSON.parse(raw):{};
+  if(!accounts || typeof accounts!=="object" || Array.isArray(accounts)) accounts={};
+  memoryAccounts=accounts;
+ }catch(e){
+  storageWorks=false;
+  accounts=memoryAccounts;
+ }
+}
+function saveAccounts(){
+ memoryAccounts=accounts;
+ try{
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(accounts));
+  storageWorks=true;
+ }catch(e){
+  storageWorks=false;
+ }
+}
+loadAccounts();
+
+const $=id=>document.getElementById(id);
+function say(id,text){$(id).textContent=text}
+function userAccount(){return currentUser?accounts[currentUser]:null}
+
+function showLogin(){
+ $("loginForm").classList.remove("hidden");
+ $("registerForm").classList.add("hidden");
+ say("authMessage","");
+}
+function showRegister(){
+ $("loginForm").classList.add("hidden");
+ $("registerForm").classList.remove("hidden");
+ say("authMessage","");
+}
+
+function register(){
+ const username=$("regUser").value.trim();
+ const password=$("regPass").value;
+ if(!username || !password) return say("authMessage","Please fill in both fields.");
+ if(!/^[a-zA-Z0-9_]{3,20}$/.test(username)) return say("authMessage","Username must be 3–20 letters, numbers or underscores.");
+ if(password.length<4) return say("authMessage","Password must have at least 4 characters.");
+
+ loadAccounts();
+ if(accounts[username]) return say("authMessage","Username already exists. Please log in.");
+
+ accounts[username]={password:password,balance:10000,bonusUsed:false,history:[]};
+ saveAccounts();
+ currentUser=username;
+ enterApp();
+}
+
+function login(){
+ const username=$("loginUser").value.trim();
+ const password=$("loginPass").value;
+ loadAccounts();
+ const saved=accounts[username];
+ if(!saved || saved.password!==password) return say("authMessage","Incorrect username or password.");
+ currentUser=username;
+ enterApp();
+}
+
+function enterApp(){
+ $("authScreen").classList.add("hidden");
+ $("mainApp").classList.remove("hidden");
+ say("welcomeUser",currentUser);
+ updateBalance();
+ renderHistory();
+ page("home");
+ if(!storageWorks) alert("Browser storage is blocked. Your account may not survive a page reload. Open this file in Chrome.");
+}
+
+function logout(){
+ stopCrash();
+ mineActive=false;
+ currentUser=null;
+ $("mainApp").classList.add("hidden");
+ $("authScreen").classList.remove("hidden");
+ showLogin();
+}
+
+function page(name,button){
+ document.querySelectorAll(".screen").forEach(x=>x.classList.add("hidden"));
+ $(name).classList.remove("hidden");
+ document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));
+ if(button) button.classList.add("active");
+ else{
+  const target=document.querySelector('nav button[data-page="'+name+'"]');
+  if(target) target.classList.add("active");
+ }
+ if(name==="history") renderHistory();
+}
+
+function updateBalance(){
+ const a=userAccount();
+ if(!a)return;
+ $("headerBalance").textContent=a.balance.toLocaleString()+" HC";
+ $("homeBalance").textContent=a.balance.toLocaleString()+" HC";
+ saveAccounts();
+}
+
+function record(type,amount,details){
+ const a=userAccount();
+ a.history.unshift({type,amount,details,date:new Date().toLocaleString()});
+ a.history=a.history.slice(0,100);
+ saveAccounts();
+ renderHistory();
+}
+function addCredits(amount,type,details){
+ userAccount().balance+=amount;
+ updateBalance();
+ record(type,amount,details);
+}
+function spendCredits(amount,type,details){
+ userAccount().balance-=amount;
+ updateBalance();
+ record(type,-amount,details);
+}
+function getBet(id){
+ const n=Number($(id).value);
+ if(!Number.isSafeInteger(n)||n<=0) throw Error("Enter a positive whole-number bet.");
+ if(n>userAccount().balance) throw Error("Insufficient virtual credits.");
+ return n;
+}
+
+/* BONUS */
+function claimBonus(){
+ const a=userAccount();
+ if($("bonusInput").value.trim().toUpperCase()!=="BEAST") return say("bonusMessage","Invalid bonus code.");
+ if(a.bonusUsed) return say("bonusMessage","This account has already claimed the bonus.");
+ a.bonusUsed=true;
+ addCredits(5000,"Bonus","BEAST promotional code");
+ say("bonusMessage","5,000 virtual credits added!");
+}
+
+/* CRASH */
+let crashTimer=null,crashRunning=false,crashValue=1,crashPoint=2,crashStake=0;
+function startCrash(){
+ if(crashRunning)return;
+ let bet;
+ try{bet=getBet("crashBet")}catch(e){return say("crashStatus",e.message)}
+ crashStake=bet;
+ spendCredits(bet,"Crash bet","Round started");
+ crashValue=1;
+ crashPoint=1.15+Math.random()*5;
+ crashRunning=true;
+ $("crashStart").disabled=true;
+ $("cashButton").disabled=false;
+ say("crashStatus","Round running...");
+ crashTimer=setInterval(()=>{
+  crashValue+=0.015+crashValue*0.012;
+  $("crashMultiplier").textContent=crashValue.toFixed(2)+"x";
+  if(crashValue>=crashPoint){
+   stopCrash();
+   say("crashStatus","CRASHED! Bet lost.");
+  }
+ },100);
+}
+function stopCrash(){
+ clearInterval(crashTimer);
+ crashRunning=false;
+ $("crashStart").disabled=false;
+ $("cashButton").disabled=true;
+}
+function cashOut(){
+ if(!crashRunning)return;
+ const multiplier=crashValue;
+ const win=Math.floor(crashStake*multiplier);
+ stopCrash();
+ addCredits(win,"Crash payout",multiplier.toFixed(2)+"x");
+ say("crashStatus","Cashed out at "+multiplier.toFixed(2)+"x. Returned "+win+" HC.");
+}
+
+/* SLOTS */
+function spinSlots(){
+ let bet;
+ try{bet=getBet("slotBet")}catch(e){return say("slotMessage",e.message)}
+ spendCredits(bet,"Slots bet","Spin");
+ const symbols=["🍒","🍋","🍉","🔔","⭐","7️⃣"];
+ const reels=Array.from({length:3},()=>symbols[Math.floor(Math.random()*symbols.length)]);
+ $("slotResult").textContent=reels.join(" | ");
+ let mult=0;
+ if(reels[0]===reels[1]&&reels[1]===reels[2])mult=5;
+ else if(new Set(reels).size===2)mult=1.5;
+ if(mult){
+  const win=Math.floor(bet*mult);
+  addCredits(win,"Slots payout",mult+"x");
+  say("slotMessage","You won "+win+" virtual credits!");
+ }else say("slotMessage","No win this spin.");
+}
+
+/* DICE */
+function rollDice(){
+ let bet;
+ try{bet=getBet("diceBet")}catch(e){return say("diceResult",e.message)}
+ const target=Number($("diceTarget").value);
+ if(!Number.isInteger(target)||target<2||target>95)return say("diceResult","Target must be from 2 to 95.");
+ spendCredits(bet,"Dice bet","Target "+target);
+ const roll=Math.floor(Math.random()*100)+1;
+ if(roll>target){
+  const win=Math.floor(bet*(100/(100-target))*0.95);
+  addCredits(win,"Dice payout","Roll "+roll);
+  say("diceResult","Rolled "+roll+" — WIN! Returned "+win+" HC.");
+ }else say("diceResult","Rolled "+roll+" — You lost this round.");
+}
+
+/* MINES */
+let mineActive=false,mineStake=0,mineMap=[],mineSafe=0,mineMultiplier=1;
+function startMines(){
+ if(mineActive)return;
+ let bet;
+ try{bet=getBet("mineBet")}catch(e){return say("mineStatus",e.message)}
+ mineStake=bet;
+ spendCredits(bet,"Mines bet","Game started");
+ mineMap=Array(25).fill(false);
+ let count=0;
+ while(count<4){
+  const i=Math.floor(Math.random()*25);
+  if(!mineMap[i]){mineMap[i]=true;count++}
+ }
+ mineSafe=0;
+ mineMultiplier=1;
+ mineActive=true;
+ $("mineGrid").innerHTML="";
+ for(let i=0;i<25;i++){
+  const b=document.createElement("button");
+  b.className="mine-tile";
+  b.textContent="?";
+  b.onclick=()=>revealMine(i,b);
+  $("mineGrid").appendChild(b);
+ }
+ $("mineStart").disabled=true;
+ $("mineCash").disabled=false;
+ say("mineStatus","Choose a tile.");
+}
+function revealMine(i,b){
+ if(!mineActive||b.disabled)return;
+ b.disabled=true;
+ if(mineMap[i]){
+  b.textContent="💣";
+  mineActive=false;
+  $("mineCash").disabled=true;
+  $("mineStart").disabled=false;
+  document.querySelectorAll(".mine-tile").forEach((tile,j)=>{
+   if(mineMap[j])tile.textContent="💣";
+   tile.disabled=true;
+  });
+  return say("mineStatus","Mine hit. Your bet was lost.");
+ }
+ b.textContent="💎";
+ mineSafe++;
+ mineMultiplier=1+mineSafe*.22;
+ say("mineStatus",mineSafe+" safe tiles. Multiplier "+mineMultiplier.toFixed(2)+"x.");
+}
+function cashMines(){
+ if(!mineActive)return;
+ if(mineSafe===0)return say("mineStatus","Reveal at least one safe tile first.");
+ const win=Math.floor(mineStake*mineMultiplier);
+ mineActive=false;
+ $("mineCash").disabled=true;
+ $("mineStart").disabled=false;
+ document.querySelectorAll(".mine-tile").forEach(tile=>tile.disabled=true);
+ addCredits(win,"Mines payout",mineMultiplier.toFixed(2)+"x");
+ say("mineStatus","Cashed out. Returned "+win+" HC.");
+}
+
+/* DEMO DEPOSIT */
+const demoWallets={
+ "USDT — TRC20":"DEMO-TRON-NOT-A-REAL-ADDRESS",
+ "USDT — ERC20":"DEMO-ETH-NOT-A-REAL-ADDRESS",
+ "Bitcoin":"DEMO-BITCOIN-NOT-A-REAL-ADDRESS",
+ "Ethereum":"DEMO-ETHEREUM-NOT-A-REAL-ADDRESS",
+ "BNB":"DEMO-BNB-NOT-A-REAL-ADDRESS"
+};
+function updateDepositAddress(){
+ $("depositAddress").value=demoWallets[$("depositNetwork").value];
+}
+async function copyDepositAddress(){
+ const field=$("depositAddress");
+ try{
+  if(navigator.clipboard&&window.isSecureContext){
+   await navigator.clipboard.writeText(field.value);
+  }else{
+   field.select();
+   if(!document.execCommand("copy"))throw Error("Copy unavailable");
+  }
+  say("depositMessage","Demo placeholder copied. It cannot receive cryptocurrency.");
+ }catch(e){
+  field.focus();field.select();
+  say("depositMessage","Select the placeholder and copy it manually.");
+ }
+}
+function demoDeposit(){
+ const amount=Number($("depositAmount").value);
+ if(!Number.isSafeInteger(amount)||amount<=0)return say("depositMessage","Enter a positive whole number.");
+ if(amount>1000000)return say("depositMessage","Maximum demo credit addition is 1,000,000.");
+ addCredits(amount,"Demo deposit",$("depositNetwork").value+" simulated");
+ say("depositMessage",amount.toLocaleString()+" virtual credits added. No payment was made.");
+}
+
+/* DEMO WITHDRAWAL */
+function demoWithdraw(){
+ const amount=Number($("withdrawAmount").value);
+ const address=$("withdrawAddress").value.trim();
+ if(!Number.isSafeInteger(amount)||amount<=0)return say("withdrawMessage","Enter a positive whole number.");
+ if(!address)return say("withdrawMessage","Enter a placeholder identifier.");
+ if(amount>userAccount().balance)return say("withdrawMessage","Insufficient virtual credits.");
+ spendCredits(amount,"Demo withdrawal",$("withdrawMethod").value+" — "+address+" — simulated");
+ say("withdrawMessage","Demo withdrawal recorded. No real funds were sent.");
+}
+
+/* TRANSACTION HISTORY */
+function renderHistory(){
+ if(!userAccount())return;
+ const list=userAccount().history;
+ const container=$("historyList");
+ container.innerHTML="";
+ if(!list.length){container.textContent="No transactions yet.";return;}
+ const table=document.createElement("table");
+ const header=document.createElement("tr");
+ ["Type","Amount","Details","Date"].forEach(label=>{
+  const th=document.createElement("th");th.textContent=label;header.appendChild(th);
+ });
+ table.appendChild(header);
+ list.forEach(item=>{
+  const row=document.createElement("tr");
+  [item.type,(item.amount>0?"+":"")+item.amount+" HC",item.details,item.date].forEach(value=>{
+   const td=document.createElement("td");td.textContent=value;row.appendChild(td);
+  });
+  table.appendChild(row);
+ });
+ container.appendChild(table);
+}
+
+updateDepositAddress();
+</script>
+</body>
+</html>
